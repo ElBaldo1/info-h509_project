@@ -1,0 +1,14 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Départs depuis {{gare_name}}</title>
+</head>
+<body>
+    <h1> Où allez-vous depuis  {{gare_name}} ?</h1>
+    <h2>Prochain départs depuis {{gare_name}}</h2>
+    <ul>
+        {% for nom in liste_départs %}
+            <li>{{ nom }}</li>
+        {% endfor %}       
+    </ul>
+</body>
