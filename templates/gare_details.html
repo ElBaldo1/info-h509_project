@@ -1,0 +1,16 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Départs depuis {{gare_name}}</title>
+</head>
+<body>
+    <h1> Où allez-vous depuis  {{gare_name}} ?</h1>
+    <h2>Prochains départs depuis {{gare_name}}</h2>
+    <form action="/depart" method="GET">
+    <ul>
+        {% for nom in liste_départs %}
+            <button type="submit" name = "destination" value = "{{nom}}">{{ nom }}</button>
+        {% endfor %}       
+    </ul>
+    </form>
+</body>
