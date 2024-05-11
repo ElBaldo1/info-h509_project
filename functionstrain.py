@@ -12,7 +12,7 @@ from OSMPythonTools.overpass import overpassQueryBuilder, Overpass
 from shapely.geometry import Point, Polygon
 from haversine import haversine, Unit
 
-from math import radians, tan, log, pi
+
 #########################################################
 #a function to get all the station info in jason format
 #return a json response
@@ -223,22 +223,5 @@ def getNextTrainByTrack(stationId, trackNumber):
 
 
 
-def mercator_projection(lat, lon):
-    """
-    Approximate x and y coordinates from latitude and longitude using the Mercator projection.
-    :param lat: Latitude in degrees
-    :param lon: Longitude in degrees
-    :return: Tuple containing the x and y coordinates
-    """
-    # Convert latitude and longitude from degrees to radians
-    lat_rad = radians(lat)
-    lon_rad = radians(lon)
-
-    # Earth radius in meters
-    R = 6371000.0
-
-    # Approximate x and y coordinates using Mercator projection
-    x = R * lon_rad
-    y = R * log(tan(pi/4 + lat_rad/2))
-
-    return x, y
+def getDistance(p1,p2):
+    return havDistance(p1.lat(), p1.lon(), p2.lat(), p2.lon())
