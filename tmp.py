@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import json, requests, time
 from datetime import datetime
-from shapely.geometry import Point
+
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import numpy as np
+import requests
+import time
 # See https://github.com/mocnik-science/osm-python-tools
 from OSMPythonTools.nominatim import Nominatim
 from OSMPythonTools.overpass import overpassQueryBuilder, Overpass
-from shapely.geometry import Point, Polygon
 from haversine import haversine, Unit
-import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import matplotlib.image as mpimg
+from shapely.geometry import Point, Polygon
 import base64
 from io import BytesIO
 
@@ -626,11 +627,8 @@ def drawSavePicture(sortedCarAndPM, direction, trainId, stationAfter):
             display_text = '\n'.join(text_lines)
             ax.text(adjusted_position, 1.5, display_text, ha='center', va='center', color='white', fontsize=10)
 
+
     # Show the plot
-    # plt.figure(figsize=(10, 8))
-    plt.tight_layout()
-    # plt.savefig('train_diagram.png', format='png', dpi=300)
-    plt.savefig('train_diagram.png', format='png', dpi=300, bbox_inches='tight')
     buffer = BytesIO()
     plt.savefig(buffer, format='png', bbox_inches='tight')
     plt.close()  # Close the plot to free up resources
@@ -642,14 +640,20 @@ def drawSavePicture(sortedCarAndPM, direction, trainId, stationAfter):
     return image_base64.decode('utf-8')
 
 
+
 def generateImage(stationName, trackNumber):
     carriages, sortedPlatformMarker, direction = _C(getCarriagePlatformMarkerPosition, stationName, trackNumber)
-    sortedCarAndPM = sorted(carriages + sortedPlatformMarker, key=lambda x: (x['position']))
+    sortedCarAndPM = sorted(carriages + sortedPlatformMarker, key=lambda x: x['position'])
     stationId = getStationIdByName(stationName)
     nextTrain = getNextTrainByTrack(stationId, trackNumber)
     nexTrainId = nextTrain['vehicleinfo']['shortname']
     stationAfter = getStationAfter(stationId, nexTrainId)
     stationAfter = [station['name'] for station in stationAfter]
-    return drawSavePicture(sortedCarAndPM, direction, nexTrainId, stationAfter)
+    print(nexTrainId, stationAfter)
 
-generateImage('Brussels-North' ,7)
+    # Use the updated drawSavePicture which now returns a base64 string
+    image_base64 = drawSavePicture(sortedCarAndPM, direction, nexTrainId, stationAfter)
+    return image_base64
+
+
+

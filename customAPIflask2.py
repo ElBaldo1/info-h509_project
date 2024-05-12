@@ -18,6 +18,7 @@ def train_info():
     # Find the matching station based on the station name
     station = next((s for s in stations if station_name.lower() in s['name'].lower()), None)
     if not station:
+        print("No matching station found for:", station_name)
         return jsonify({'error': 'No matching station found'}), 404
 
     # Fetch liveboard data for the station
@@ -32,54 +33,68 @@ def train_info():
 
     departures = liveboard_data.get('departures', {}).get('departure', [])
     if not departures:
+        print("No departures found at station:", station['name'])
         return jsonify({'error': 'No departures found'}), 404
 
-    # Assuming taking the first departure for simplicity
-    first_departure = departures[0]
-    vehicle_id = first_departure.get('vehicle', '')
+    trains = []
+    # Process each departure separately
+    for departure in departures:
+        vehicle_id = departure.get('vehicle', '')
 
-    # Fetch composition for the train
-    composition_params = {
-        'id': vehicle_id,
-        'format': 'json',
-        'lang': 'en',
-        'data': 'all'
-    }
-    composition_response = requests.get(f'{api_base}/composition/', params=composition_params)
-    composition_data = composition_response.json()
+        # Fetch composition for the train
+        composition_params = {
+            'id': vehicle_id,
+            'format': 'json',
+            'lang': 'en',
+            'data': 'all'
+        }
+        composition_response = requests.get(f'{api_base}/composition/', params=composition_params)
+        print("Fetched composition for vehicle ID", vehicle_id, ":", composition_response.json())  # Log composition data
+        composition_data = composition_response.json()
 
-    # Parse train composition
-    segments = composition_data.get('composition', {}).get('segments', {}).get('segment', [])
-    parsed_segments = [{
-        'segmentID': seg['id'],
-        'carriage': [
-            {
-                'number': car['materialNumber'],
-                'class': 'second' if int(car.get('seatsSecondClass', 0)) > int(car.get('seatsFirstClass', 0)) else 'first',
-                'features': [
-                    'bike' if int(car.get('hasBikeSection', 0)) > 0 else '',
-                    'wheelchair' if int(car.get('hasPriorityPlaces', 0)) > 0 else ''
-                ]
+        if 'composition' not in composition_data or not composition_data['composition'].get('segments'):
+            print("No composition or segments found for vehicle:", vehicle_id)
+            continue
+
+        segments = composition_data.get('composition', {}).get('segments', {}).get('segment', [])
+        parsed_segments = [{
+            'segmentID': seg['id'],
+            'carriage': [
+                {
+                    'number': car['materialNumber'],
+                    'class': 'second' if int(car.get('seatsSecondClass', 0)) > int(car.get('seatsFirstClass', 0)) else 'first',
+                    'features': [
+                        'bike' if int(car.get('hasBikeSection', 0)) > 0 else '',
+                        'wheelchair' if int(car.get('hasPriorityPlaces', 0)) > 0 else ''
+                    ]
+                } for car in seg.get('units', {}).get('unit', [])
+            ]
+        } for seg in segments]
+
+        print("-------------------")
+        print("segments:", segments)
+        print("-------------------")
+
+        train_info = {
+            'railwayID': departure['id'],
+            'platformType': departure.get('platforminfo', {}).get('name', 'unknown'),
+            'train': {
+                'trainID': vehicle_id,
+                'trainName': departure.get('vehicleinfo', {}).get('shortname', 'unknown'),
+                'segments': parsed_segments,
+                'direction': 'left',  # Example
+                'details': 'Details not available'
             }
-            for car in seg.get('units', {}).get('unit', [])
-        ]
-    } for seg in segments]
+        }
+        trains.append(train_info)
+
+
 
     response = {
         'stationName': station['name'],
         'stationID': station['id'],
         'numberOfPlatform': len(departures),
-        'TrainInRailwayStation': [{
-            'railwayID': first_departure['id'],
-            'platformType': first_departure.get('platforminfo', {}).get('name', 'unknown'),
-            'train': {
-                'trainID': vehicle_id,
-                'trainName': first_departure.get('vehicleinfo', {}).get('shortname', 'unknown'),
-                'segments': parsed_segments,
-                'direction': 'left',  # Example
-                'details': 'Details not available'
-            }
-        }]
+        'TrainInRailwayStation': trains
     }
 
     return jsonify(response)

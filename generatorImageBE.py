@@ -13,8 +13,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
+import io
 import base64
-from io import BytesIO
 
 
 def fetchStations():
@@ -561,95 +561,53 @@ def _C(function, *args, **kwargs):
 
 def drawSavePicture(sortedCarAndPM, direction, trainId, stationAfter):
     plt.figure(figsize=(20, 20))
-    # Load the image of a train carriage
-    carriage_image_path = "c.png"  # Ensure the path to the carriage image is correct
+    carriage_image_path = "c.png"  # Ensure this path is correct
 
-    # Helper function to create an image box with dynamic zoom and optional flipping
     def get_image_box(path, zoom, direction=1):
         image = mpimg.imread(path)
         if direction == 1:
-            image = np.fliplr(image)  # Flip the image horizontally
+            image = np.fliplr(image)
         image_box = OffsetImage(image, zoom=zoom)
         return image_box
 
-    # Define data
-    data = sortedCarAndPM
-
-    # Calculate min and max position to set plot limits dynamically
-    min_position = min(item['position'] for item in data if 'position' in item)
-    max_position = max((item['position'] + float(item['lengthInMeter'])) for item in data if
-                       'position' in item and 'lengthInMeter' in item) + 10  # Add extra space for the last item
-
-    # Create figure and axis
-    fig, ax = plt.subplots(figsize=(20, 4))  # Adjust figure size for better layout
-    # ax.set_xlim(min_position - 10, max_position + 10)
-    ax.set_xlim(min_position - 20, max_position + 20)
-    ax.set_ylim(0, 4)
+    fig, ax = plt.subplots(figsize=(20, 4))
+    ax.set_xlim(-10, 250)
+    ax.set_ylim(0, 3)
     ax.axis('off')
-
-    # Set the background color for the entire figure
     fig.patch.set_facecolor('#0033A0')
     ax.set_facecolor('#0033A0')
 
-    # Display train number and next stations in bold and larger font
-    ax.text(0.01, 0.95, trainId, transform=ax.transAxes, fontsize=14, fontweight='bold', ha='left', va='top',
-            color='blue')
-    if stationAfter:
-        stations_text = f"The train will arrive at {', '.join(stationAfter)}"
-        ax.text(0.01, 0.88, stations_text, transform=ax.transAxes, fontsize=12, fontweight='bold', ha='left', va='top',
-                color='black')
-
-    # Plotting the carriages and platform markers
-    total_carriages = len([item for item in data if item['type'] == 'carriage'])
-    base_zoom = 0.15  # Base zoom level
-    if total_carriages > 10:
-        base_zoom = max(0.15 - ((total_carriages - 10) * 0.005), 0.05)
-
-    for item in data:
+    for item in sortedCarAndPM:
         if item['type'] == 'platform_marker':
-            # Keep platform markers close to the carriages
-            ax.text(item['position'], 1, item['tags']['ref'], ha='center', fontsize=12,
+            ax.text(item['position'], 2.5, item['tags']['ref'], ha='center', fontsize=12,
                     bbox=dict(boxstyle="round,pad=0.3", edgecolor='black', facecolor='yellow'))
         elif item['type'] == 'carriage':
-            adjusted_position = item['position'] + float(item['lengthInMeter']) / 2  # Center of the carriage
-            zoom = base_zoom * (25 / float(item['lengthInMeter']))  # Adjust zoom relative to carriage length
-            image_box = get_image_box(carriage_image_path, zoom=zoom, direction=direction)
-            ab = AnnotationBbox(image_box, (adjusted_position, 2), frameon=False)
+            image_box = get_image_box(carriage_image_path, zoom=0.15, direction=direction)
+            ab = AnnotationBbox(image_box, (item['position'] + 10, 1.5), frameon=False)
             ax.add_artist(ab)
-            # Determine text based on 'hasToilets' and 'hasBikeSection'
-            text_lines = []
-            if item.get('hasToilets') == '1':
-                text_lines.append('WC')
-            if item.get('hasBikeSection') == '1':
-                text_lines.append('bike')
-            # Join text lines to display one under another
-            display_text = '\n'.join(text_lines)
-            ax.text(adjusted_position, 1.5, display_text, ha='center', va='center', color='white', fontsize=10)
+            ax.text(item['position'] + 10, 1, f'Car {item["No"]}', ha='center', va='center', color='white', fontsize=10)
 
-    # Show the plot
-    # plt.figure(figsize=(10, 8))
-    plt.tight_layout()
-    # plt.savefig('train_diagram.png', format='png', dpi=300)
-    plt.savefig('train_diagram.png', format='png', dpi=300, bbox_inches='tight')
-    buffer = BytesIO()
-    plt.savefig(buffer, format='png', bbox_inches='tight')
-    plt.close()  # Close the plot to free up resources
+    # Convert the plot to a PNG image and then encode it to base64
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    plt.close(fig)  # Close the plot to free up memory
+    buf.seek(0)
+    image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
 
-    # Convert the buffer to a base64 string
-    buffer.seek(0)
-    image_png = buffer.getvalue()
-    image_base64 = base64.b64encode(image_png)
-    return image_base64.decode('utf-8')
+    return image_base64
 
 
 def generateImage(stationName, trackNumber):
     carriages, sortedPlatformMarker, direction = _C(getCarriagePlatformMarkerPosition, stationName, trackNumber)
-    sortedCarAndPM = sorted(carriages + sortedPlatformMarker, key=lambda x: (x['position']))
+    sortedCarAndPM = sorted(carriages + sortedPlatformMarker, key=lambda x: x['position'])
     stationId = getStationIdByName(stationName)
     nextTrain = getNextTrainByTrack(stationId, trackNumber)
     nexTrainId = nextTrain['vehicleinfo']['shortname']
     stationAfter = getStationAfter(stationId, nexTrainId)
     stationAfter = [station['name'] for station in stationAfter]
+    print(nexTrainId, stationAfter)
     return drawSavePicture(sortedCarAndPM, direction, nexTrainId, stationAfter)
 
-generateImage('Brussels-North' ,7)
+
+
