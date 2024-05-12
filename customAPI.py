@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from tmp import generateImage  # Ensure this module name is correct
+from generatorImages import generateImage  # Ensure this module name is correct
 from flask_cors import cross_origin
 
 app = Flask(__name__)
