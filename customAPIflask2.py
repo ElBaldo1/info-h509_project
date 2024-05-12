@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 import requests
 from flask_cors import CORS
-from zexin_f import getStationLocationById, fetchTrainComposition, getPlatformMarker, getSignal,getStationIdByName
 
 app = Flask(__name__)
 CORS(app)
@@ -13,7 +12,7 @@ def train_info():
 
     # Fetch station data
     station_params = {'format': 'json', 'lang': 'en'}
-    station_response = getStationIdByName(station_name)
+    station_response = requests.get(f'{api_base}/stations/', params=station_params)
     stations = station_response.json().get('station', [])
 
     # Find the matching station based on the station name
@@ -21,12 +20,9 @@ def train_info():
     if not station:
         return jsonify({'error': 'No matching station found'}), 404
 
-    station_id = station['id']
-    station_location = getStationLocationById(station_id)
-
-    # Fetch liveboard and train composition data
+    # Fetch liveboard data for the station
     liveboard_params = {
-        'id': station_id,
+        'id': station['id'],
         'format': 'json',
         'lang': 'en',
         'arrdep': 'departure'
@@ -41,16 +37,37 @@ def train_info():
     # Assuming taking the first departure for simplicity
     first_departure = departures[0]
     vehicle_id = first_departure.get('vehicle', '')
-    composition_data = fetchTrainComposition(vehicle_id)
 
-    # Fetch platform markers and signals
-    platform_markers = getPlatformMarker(station_id)
-    signals = getSignal(station_id)
+    # Fetch composition for the train
+    composition_params = {
+        'id': vehicle_id,
+        'format': 'json',
+        'lang': 'en',
+        'data': 'all'
+    }
+    composition_response = requests.get(f'{api_base}/composition/', params=composition_params)
+    composition_data = composition_response.json()
+
+    # Parse train composition
+    segments = composition_data.get('composition', {}).get('segments', {}).get('segment', [])
+    parsed_segments = [{
+        'segmentID': seg['id'],
+        'carriage': [
+            {
+                'number': car['materialNumber'],
+                'class': 'second' if int(car.get('seatsSecondClass', 0)) > int(car.get('seatsFirstClass', 0)) else 'first',
+                'features': [
+                    'bike' if int(car.get('hasBikeSection', 0)) > 0 else '',
+                    'wheelchair' if int(car.get('hasPriorityPlaces', 0)) > 0 else ''
+                ]
+            }
+            for car in seg.get('units', {}).get('unit', [])
+        ]
+    } for seg in segments]
 
     response = {
         'stationName': station['name'],
-        'stationID': station_id,
-        'location': station_location,
+        'stationID': station['id'],
         'numberOfPlatform': len(departures),
         'TrainInRailwayStation': [{
             'railwayID': first_departure['id'],
@@ -58,18 +75,12 @@ def train_info():
             'train': {
                 'trainID': vehicle_id,
                 'trainName': first_departure.get('vehicleinfo', {}).get('shortname', 'unknown'),
-                'segments': composition_data,
+                'segments': parsed_segments,
                 'direction': 'left',  # Example
                 'details': 'Details not available'
-            },
-            'platformMarkers': platform_markers,
-            'signals': signals
+            }
         }]
     }
-
-    print('-----------------------------------')
-    print(response)
-    print('-----------------------------------')
 
     return jsonify(response)
 
