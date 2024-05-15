@@ -11,6 +11,7 @@ def generate_image():
     print('data',data)
     trackNumber =data['trackNumber']
     stationName =data['stationName']
+    trackNumber=int(trackNumber)
     base64= generateImage(stationName,trackNumber)
 
     #print(generateImage('Brussels-North', 7))
