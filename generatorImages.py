@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import base64
+import json, requests, time
 from datetime import datetime
-
-import matplotlib.image as mpimg
-import matplotlib.pyplot as plt
-import numpy as np
-import requests
-import time
+from shapely.geometry import Point
 # See https://github.com/mocnik-science/osm-python-tools
 from OSMPythonTools.nominatim import Nominatim
 from OSMPythonTools.overpass import overpassQueryBuilder, Overpass
-from haversine import haversine, Unit
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from shapely.geometry import Point, Polygon
-import base64
-from io import BytesIO
+from haversine import haversine, Unit
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import matplotlib.image as mpimg
 
 
 def fetchStations():
@@ -559,7 +556,13 @@ def _C(function, *args, **kwargs):
     print(f"Tried 20 times! {function.__name__} failed. Please check.")
     return None
 
-
+#Now use the returns of this function to draw the picture
+#carriages, sortedPlatformMarker, direction = _C(getCarriagePlatformMarkerPosition, 'Brussels-North' ,4)
+#sortedCarAndPM = sorted(carriages+sortedPlatformMarker, key=lambda x: (x['position']))
+#print(sortedPlatformMarker)
+#print(carriages)
+#print(direction)
+#print(sortedCarAndPM)
 def drawSavePicture(sortedCarAndPM, direction, trainId, stationAfter):
     plt.figure(figsize=(20, 20))
     # Load the image of a train carriage
@@ -625,35 +628,28 @@ def drawSavePicture(sortedCarAndPM, direction, trainId, stationAfter):
                 text_lines.append('bike')
             # Join text lines to display one under another
             display_text = '\n'.join(text_lines)
-            ax.text(adjusted_position, 1.5, display_text, ha='center', va='center', color='white', fontsize=10)
-
+            ax.text(adjusted_position, 1.5, display_text, ha='center', va='center', color='black', fontsize=10)
 
     # Show the plot
-    buffer = BytesIO()
-    plt.savefig(buffer, format='png', bbox_inches='tight')
-    plt.close()  # Close the plot to free up resources
-
-    # Convert the buffer to a base64 string
-    buffer.seek(0)
-    image_png = buffer.getvalue()
-    image_base64 = base64.b64encode(image_png)
-    return image_base64.decode('utf-8')
-
+    # plt.figure(figsize=(10, 8))
+    plt.tight_layout()
+    # plt.savefig('train_diagram.png', format='png', dpi=300)
+    plt.savefig('train_diagram.png', format='png', dpi=300, bbox_inches='tight')
+    # plt.show()
 
 
 def generateImage(stationName, trackNumber):
     carriages, sortedPlatformMarker, direction = _C(getCarriagePlatformMarkerPosition, stationName, trackNumber)
-    sortedCarAndPM = sorted(carriages + sortedPlatformMarker, key=lambda x: x['position'])
+    sortedCarAndPM = sorted(carriages + sortedPlatformMarker, key=lambda x: (x['position']))
     stationId = getStationIdByName(stationName)
     nextTrain = getNextTrainByTrack(stationId, trackNumber)
     nexTrainId = nextTrain['vehicleinfo']['shortname']
     stationAfter = getStationAfter(stationId, nexTrainId)
     stationAfter = [station['name'] for station in stationAfter]
     print(nexTrainId, stationAfter)
-
-    # Use the updated drawSavePicture which now returns a base64 string
-    image_base64 = drawSavePicture(sortedCarAndPM, direction, nexTrainId, stationAfter)
-    return image_base64
-
-
+    drawSavePicture(sortedCarAndPM, direction, nexTrainId, stationAfter)
+    with open("train_diagram.png", "rb") as image_file:
+        binary_data = image_file.read()
+    encoded_string = base64.b64encode(binary_data).decode('utf-8')
+    return (encoded_string)
 

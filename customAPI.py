@@ -8,19 +8,15 @@ app = Flask(__name__)
 @cross_origin(origins='http://localhost:3000')  # Allow React app to access this route
 def generate_image():
     data = request.json
-    station_name = data['stationName']
-    track_number = data['trackNumber']
+    print('data',data)
+    trackNumber =data['trackNumber']
+    stationName =data['stationName']
+    base64= generateImage(stationName,trackNumber)
 
-    # Call the generateImage function that now returns the base64-encoded string directly
-    base64_image = generateImage(station_name, track_number)
-
-    print('**********************')
-    print(base64_image)
-    print('**********************')
-
+    #print(generateImage('Brussels-North', 7))
 
     # Return the base64 string as JSON
-    return jsonify({'image': base64_image})
+    return jsonify({'image': base64})
 
 if __name__ == '__main__':
     app.run(debug=True)
