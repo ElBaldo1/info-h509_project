@@ -361,6 +361,7 @@ def getStopSignal(trainStationId, trainId, trackNumber, rad=0.015):
     totalCarriageNum = 0
     for sgmt in composition['composition']['segments']['segment']:
         totalCarriageNum = totalCarriageNum + int(sgmt['composition']['units']['number'])
+        if totalCarriageNum != 0: break
 
     # print(f"totalCarriageNum1: {totalCarriageNum}")
 
@@ -434,6 +435,7 @@ def carriagesExtracted(composition):
             carriage['No'] = numOfCarriage
             carriages.append(carriage)
             numOfCarriage = numOfCarriage + 1
+        break
     return carriages
 
 
